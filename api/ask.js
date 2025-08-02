@@ -1,5 +1,14 @@
+function extractPersonality(question) {
+  const lower = question.toLowerCase();
+  if (lower.includes("emerald")) return "Emerald";
+  if (lower.includes("ruby")) return "Ruby";
+  if (lower.includes("pearl")) return "Pearl";
+  if (lower.includes("sapphire")) return "Sapphire";
+  return "";
+}
 export default async function handler(req, res) {
   const { userInput } = req.body;
+  const personality = extractPersonality(userInput);
 
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
