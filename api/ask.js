@@ -6,10 +6,12 @@ function extractPersonality(question) {
   if (lower.includes("sapphire")) return "Sapphire";
   return "";
 }
+
 export default async function handler(req, res) {
   const { userInput } = req.body;
   const personality = extractPersonality(userInput);
 
+  // 🔮 Call OpenAI
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -34,8 +36,8 @@ export default async function handler(req, res) {
   const data = await openaiRes.json();
   const reply = data.choices?.[0]?.message?.content || "[No response]";
 
-  // Send log to Airtable
-  await fetch("https://api.airtable.com/v0/" + process.env.AIRTABLE_BASE_ID + "/User Logs", {
+  // 📊 Log to Airtable
+  await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
@@ -43,10 +45,10 @@ export default async function handler(req, res) {
     },
     body: JSON.stringify({
       fields: {
+        Timestamp: new Date().toLocaleString(),
         Question: userInput,
         Response: reply,
-        Timestamp: new Date().toISOString(),
-        // Personality: OPTIONAL: parse this from userInput or elsewhere
+        Personality: personality,
       },
     }),
   });
