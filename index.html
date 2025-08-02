@@ -63,20 +63,11 @@
       chatlog.innerText += "\n\nYou: " + userText;
       input.value = '';
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + window.OPENAI_KEY
-        },
-        body: JSON.stringify({
-          model: "gpt-4",
-          messages: [
-            { role: "system", content: "You are ANGUS™, a bold, no-fluff strategist trained in The Legacy Code. Always answer in a tone matching the user's GEM personality (pearl, ruby, emerald, sapphire) based on input." },
-            { role: "user", content: userText }
-          ]
-        })
-      });
+      const response = await fetch("/api/ask", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(userText)
+});
 
       const data = await response.json();
       const botReply = data.choices?.[0]?.message?.content || "[No response]";
