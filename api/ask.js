@@ -1,22 +1,46 @@
 export default async function handler(req, res) {
   const { userInput } = req.body;
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.OPENAI_KEY}`,
+      Authorization: `Bearer ${process.env.OPENAI_KEY}`,
     },
     body: JSON.stringify({
       model: "gpt-4",
       messages: [
-        { role: "system", content: "You are ANGUS™, a bold, no-fluff strategist trained in The Legacy Code. Always answer in a tone matching the user's GEM personality (pearl, ruby, emerald, sapphire) based on input." },
-        { role: "user", content: userInput }
-      ]
+        {
+          role: "system",
+          content: "You are ANGUS™, a bold, no-fluff strategist trained in The Legacy Code. Always answer in a tone matching the user's GEM personality (pearl, ruby, emerald, sapphire) based on input.",
+        },
+        {
+          role: "user",
+          content: userInput,
+        },
+      ],
     }),
   });
 
-  const data = await response.json();
+  const data = await openaiRes.json();
   const reply = data.choices?.[0]?.message?.content || "[No response]";
+
+  // Send log to Airtable
+  await fetch("https://api.airtable.com/v0/" + process.env.AIRTABLE_BASE_ID + "/User Logs", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fields: {
+        Question: userInput,
+        Response: reply,
+        Timestamp: new Date().toISOString(),
+        // Personality: OPTIONAL: parse this from userInput or elsewhere
+      },
+    }),
+  });
+
   res.status(200).json({ reply });
 }
