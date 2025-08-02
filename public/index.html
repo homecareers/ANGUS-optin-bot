@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ANGUS Opt-In Bot</title>
+  <style>
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 2rem;
+    }
+    #chatbox {
+      border: 2px solid gold;
+      border-radius: 12px;
+      padding: 1rem;
+      max-width: 600px;
+      margin: auto;
+      background-color: #111;
+    }
+    #chatlog {
+      min-height: 300px;
+      margin-bottom: 1rem;
+      white-space: pre-wrap;
+    }
+    #input-area {
+      display: flex;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 0.5rem;
+      border-radius: 6px;
+      border: none;
+    }
+    button {
+      background: gold;
+      color: black;
+      border: none;
+      padding: 0.5rem 1rem;
+      margin-left: 0.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="chatbox">
+    <div id="chatlog">⚡ Welcome to your future. I’m ANGUS™ — your elite strategist. Ask me *anything* about building legacy income, and I’ll point you in the right direction.</div>
+    <div id="input-area">
+      <input type="text" id="userInput" placeholder="Type your question..." />
+      <button onclick="sendMessage()">Ask ANGUS™</button>
+    </div>
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById('userInput');
+      const chatlog = document.getElementById('chatlog');
+      const userText = input.value;
+      if (!userText) return;
+      chatlog.innerText += "\n\nYou: " + userText;
+      input.value = '';
+
+      const response = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userInput: userText })
+      });
+
+      const data = await response.json();
+      const botReply = data.reply || "[No response]";
+      chatlog.innerText += "\n\nANGUS: " + botReply;
+    }
+  </script>
+</body>
+</html>
