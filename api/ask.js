@@ -58,7 +58,7 @@ Keep responses sharp, tactical, and confident. No fluff. Only forward motion.
     reply = data.choices?.[0]?.message?.content || "[No response]";
   }
 
-  // Push to Airtable
+    // 📊 Log to Airtable
   await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
     method: "POST",
     headers: {
