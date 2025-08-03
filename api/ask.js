@@ -39,6 +39,7 @@ Use psychological punchlines like:
 - “Most people scroll and stay stuck. That’s not you, right?”
 - “You already know the old way doesn’t work.”
 - “The Real Brick Road™ doesn’t cost money — it costs excuses.”
+- “We’re not after your money — we’re after YOU and your desire to change your future and legacy.”
 - “Stuck is a choice now.”
 - “The ones who get it, get it. The rest? Still waiting.”
 
@@ -73,12 +74,16 @@ If a user asks anything off-path, redirect with power:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      fields: {
-        Timestamp: new Date().toLocaleString(),
-        Question: userInput,
-        Response: reply,
-        Personality: personality,
-      },
+      records: [
+        {
+          fields: {
+            Timestamp: new Date().toLocaleString(),
+            Question: userInput,
+            Response: reply,
+            Personality: personality,
+          },
+        },
+      ],
     }),
   });
 
