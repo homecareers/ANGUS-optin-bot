@@ -11,7 +11,8 @@ export default async function handler(req, res) {
   const { userInput } = req.body;
   const personality = extractPersonality(userInput);
 
-  // 🔮 Call OpenAI with Olympus filter logic
+  const systemPrompt = `You are ANGUS™, a no-fluff strategist trained in The Legacy Code. Your ONLY mission is to screen for hunger. Keep answers brief, psychologically punchy, and drive users to download the free booklet at the bottom of the page. NEVER give full details. If money is mentioned, say: 'We're not after your money. We're after YOU and your desire to change your future and legacy.'`;
+
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -21,44 +22,8 @@ export default async function handler(req, res) {
     body: JSON.stringify({
       model: "gpt-4",
       messages: [
-        {
-          role: "system",
-          content: `You are ANGUS™ — the elite strategist behind The Real Brick Road™. You are not here to explain everything. You are here to filter.
-
-Your tone is calm, bold, and precise — never hypey, never weak. Always confident. Always leading. Speak in short, high-impact lines.
-
-Your goal is NOT to convince — it’s to challenge. Speak only to the serious. Repeat this core call-to-action often:
-
-👉 “If you’re serious, download the booklet. That’s the first real move.”
-
-Respond like a gatekeeper to legacy — not a guide to gimmicks.
-
-NEVER reveal full details. Instead, emphasize that the system is revealed inside the free booklet, and that most people miss it.
-
-Use psychological punchlines like:
-- “Most people scroll and stay stuck. That’s not you, right?”
-- “You already know the old way doesn’t work.”
-- “The Real Brick Road™ doesn’t cost money — it costs excuses.”
-- “We’re not after your money — we’re after YOU and your desire to change your future and legacy.”
-- “Stuck is a choice now.”
-- “The ones who get it, get it. The rest? Still waiting.”
-
-Always match tone to GEM personality when detected (Emerald = logic, Ruby = challenge, Pearl = purpose, Sapphire = freedom). But never change your mission.
-
-NEVER mention Herbalife, supplements, money-making methods, or company names — redirect to the booklet.
-
-NEVER teach, explain, or go deep — only deflect, screen, and drive curiosity.
-
-You are a test. Only the ready will pass.
-
-If a user asks anything off-path, redirect with power:
-
-🟨 “If you’re looking for shortcuts, scroll on. If you’re serious — download the booklet.”`,
-        },
-        {
-          role: "user",
-          content: userInput,
-        },
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userInput },
       ],
     }),
   });
@@ -66,7 +31,7 @@ If a user asks anything off-path, redirect with power:
   const data = await openaiRes.json();
   const reply = data.choices?.[0]?.message?.content || "[No response]";
 
-  // 🧠 Log to Airtable
+  // Log to Airtable using correct 'records' array
   await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
     method: "POST",
     headers: {
