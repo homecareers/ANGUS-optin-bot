@@ -11,89 +11,90 @@ export default async function handler(req, res) {
   const { userInput } = req.body;
   const personality = extractPersonality(userInput);
 
-  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: `You are ANGUS™, a bold, no-fluff strategist trained in The Legacy Code. Always answer in a tone matching the user's GEM personality (Pearl, Ruby, Emerald, Sapphire) based on input.`,
-        },
-        {
-          role: "user",
-          content: userInput,
-        },
-      ],
-    }),
-  });
-
-  const data = await openaiRes.json();
-  const reply = data.choices?.[0]?.message?.content || "[No response]";
-
-  // Ask GPT to score the response
-  const gradingPrompt = `Grade the following response on a scale of 0 to 10 in three categories:
-- Clarity: Is it clearly written and structured?
-- Relevance: Does it directly address the user's concern?
-- Confidence: Is the tone confident and authoritative?
-Also, rate the Personality Match (0-10) based on whether it fits the user's GEM type: ${personality}.
-Respond in JSON with keys: clarity, relevance, confidence, match.
-
-RESPONSE:
-"""
-${reply}
-"""`;
-
-  const gradingRes = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4",
-      messages: [
-        { role: "user", content: gradingPrompt },
-      ],
-    }),
-  });
-
-  const gradingData = await gradingRes.json();
-  let clarity = null, relevance = null, confidence = null, match = null;
   try {
-    const scores = JSON.parse(gradingData.choices?.[0]?.message?.content || '{}');
-    clarity = scores.clarity;
-    relevance = scores.relevance;
-    confidence = scores.confidence;
-    match = scores.match;
-  } catch (e) {
-    console.error("Scoring parse error:", e);
-  }
-
-  // Send log to Airtable
-  await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      fields: {
-        Question: userInput,
-        Response: reply,
-        Personality: personality,
-        Timestamp: new Date().toISOString(),
-        "Clarity Score": clarity,
-        "Relevance Score": relevance,
-        Confidence: confidence,
-        "Personality Match": match,
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_KEY}`,
       },
-    }),
-  });
+      body: JSON.stringify({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are ANGUS™, a bold, no-fluff strategist trained in The Legacy Code. Always answer in a tone matching the user's GEM personality (pearl, ruby, emerald, sapphire) based on input.",
+          },
+          { role: "user", content: userInput },
+        ],
+      }),
+    });
 
-  res.status(200).json({ reply });
+    const data = await openaiRes.json();
+    const reply = data.choices?.[0]?.message?.content || "[No response]";
+
+    // --- Ask GPT to self-grade the response ---
+    const gradingRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a scoring assistant. Score the following response on a scale of 0–10 in the following categories: Clarity, Relevance, Confidence, and Personality Match. Return only a compact JSON object like this: { \"Clarity\": 8, \"Relevance\": 9, \"Confidence\": 10, \"PersonalityMatch\": 9 }.",
+          },
+          {
+            role: "user",
+            content: `Question: ${userInput}\nResponse: ${reply}\nPersonality: ${personality}`,
+          },
+        ],
+      }),
+    });
+
+    const gradingData = await gradingRes.json();
+    let scores = {};
+
+    try {
+      const scoreText = gradingData.choices?.[0]?.message?.content || "{}";
+      scores = JSON.parse(scoreText);
+    } catch (e) {
+      console.error("Failed to parse scores:", e);
+    }
+
+    // --- Log to Airtable ---
+    const airtableRes = await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User Logs`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fields: {
+          Question: userInput,
+          Response: reply,
+          Timestamp: new Date().toISOString(),
+          Personality: personality,
+          "Clarity Score": scores.Clarity || 0,
+          "Relevance Score": scores.Relevance || 0,
+          Confidence: scores.Confidence || 0,
+          "Personality Match": scores.PersonalityMatch || 0,
+        },
+      }),
+    });
+
+    console.log("Airtable status:", airtableRes.status);
+    const airtableText = await airtableRes.text();
+    console.log("Airtable response:", airtableText);
+
+    res.status(200).json({ reply });
+  } catch (error) {
+    console.error("Fatal error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
