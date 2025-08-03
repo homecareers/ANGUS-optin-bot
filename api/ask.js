@@ -58,10 +58,10 @@ End every response with this:
   const data = await openaiRes.json();
   const reply = customReply || data.choices?.[0]?.message?.content || "[No response]";
 
-  await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
+  // 🔁 Send payload to Webhook.site instead of Airtable
+  await fetch("https://webhook.site/49b21aed-4354-4621-870f-c089c87d3e5e", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
