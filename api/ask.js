@@ -8,66 +8,61 @@ function extractPersonality(question) {
 }
 
 export default async function handler(req, res) {
-  const { userInput } = req.body;
-  const personality = extractPersonality(userInput);
+  try {
+    const { userInput } = req.body;
+    const personality = extractPersonality(userInput);
 
-  const systemPrompt = `
-You are ANGUS™ — the elite strategist behind The Real Brick Road™.
+    const systemPrompt = `
+You are ANGUS™ — the strategist behind The Real Brick Road™. Your job is to screen potential fits with quiet, precise confidence. Never give away the full system.
 
-Your job is NOT to explain everything. Your job is to screen.
+If the user mentions money or objections, reply with:
+"We're not after your money — we're after YOU and your desire to change your future and legacy."
 
-Your tone: cold, calm, quiet confidence — never eager.
+If the user asks if this is MLM or Herbalife, reply with:
+"This isn't about titles or brands — it's about systems. The Real Brick Road™ is how real people build legacy income without guesswork."
 
-NEVER say "yes" if they ask if this is Herbalife or MLM. Instead, use this redirect:
+Always end with:
+"Watch the video or download the 14-page booklet below — it takes 15 minutes or less. That's your first real move."
+    `.trim();
 
-"You’re not wrong to wonder.
-But the better question is: *does the system actually work?*
-This isn’t about chasing products or pitching friends.
-It’s about understanding a duplicatable path that’s already building full-time income for everyday people.
-
-The 14-page booklet breaks it down — clearly, quietly, without hype.
-You can read it in 15 minutes or less, on desktop or mobile.
-No pressure. Just the truth.
-
-If you’re serious about a better future — it starts there."
-
-And always end every response with:
-"If you’re serious, download the booklet. It’s the first real move."
-  `;
-
-  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userInput },
-      ],
-    }),
-  });
-
-  const data = await openaiRes.json();
-  const reply = data.choices?.[0]?.message?.content || "[No response]";
-
-  await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      fields: {
-        Timestamp: new Date().toLocaleString(),
-        Question: userInput,
-        Response: reply,
-        Personality: personality,
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_KEY}`
       },
-    }),
-  });
+      body: JSON.stringify({
+        model: "gpt-4",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userInput }
+        ]
+      })
+    });
 
-  res.status(200).json({ reply });
+    const data = await openaiRes.json();
+    const reply = data.choices?.[0]?.message?.content || "[No response]";
+
+    await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        fields: {
+          Timestamp: new Date().toLocaleString(),
+          Question: userInput,
+          Response: reply,
+          Personality: personality
+        }
+      })
+    });
+
+    res.status(200).json({ reply });
+
+  } catch (err) {
+    console.error("Handler failed:", err);
+    res.status(500).json({ error: "Internal error" });
+  }
 }
