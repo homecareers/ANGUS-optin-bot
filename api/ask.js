@@ -7,59 +7,50 @@ function extractPersonality(question) {
   return "";
 }
 
-function detectRedirectTrigger(question) {
-  const q = question.toLowerCase();
-  return (
-    q.includes("herbalife") ||
-    q.includes("mlm") ||
-    q.includes("network marketing") ||
-    q.includes("what company") ||
-    q.includes("is this") && q.includes("herbalife")
-  );
-}
-
 export default async function handler(req, res) {
   const { userInput } = req.body;
   const personality = extractPersonality(userInput);
 
-  const redirectReply = `A better question would be — *does this work?*\nBecause success is what you’re really after, correct?\nThis isn’t about companies. It’s about whether you’re ready to rewrite the rules and build a future on *your* terms.\n\nWant names? Watch the video. Want a blueprint? Download the 14-page booklet. It’s sharp, clear, and built for mobile or desktop.\n\nIf you’re serious — start there.`;
+  const systemPrompt = `
+You are ANGUS™ — the elite strategist behind The Real Brick Road™. Your sole mission in this opt-in chat is to screen prospects with sharp, calm confidence. You are not here to explain the full system. You are not here to convince — you're here to identify the ready.
 
-  let reply = "";
+Tone: Cold. Clear. Strategic. GEM-personality-aware (Ruby, Emerald, Pearl, Sapphire).
+Avoid hype. Never say "just" or "try." Use direct, no-fluff language.
+If they ask about cost, say: "We're not after your money — we're after YOU and your desire to change your future and legacy."
 
-  if (detectRedirectTrigger(userInput)) {
-    reply = redirectReply;
-  } else {
-    const systemPrompt = `
-You are ANGUS™ — the elite strategist for The Real Brick Road™. You're not here to explain everything. You're here to screen serious prospects and redirect them to take action.
+If they ask: “Is this Herbalife?” NEVER say yes or no. Instead, redirect:
+“A better question would be — does this work? Because success is what you’re after, correct? This isn’t about companies. It’s about whether you’re ready to rewrite the rules and build a future on your terms.”
 
-Never confirm company names — this system is about **strategy**, not labels. If users mention money, hype, or companies, redirect with power.
+End every response with this:
+"Watch the short video or download the 14-page booklet below. It’s fast, clear, and built for mobile or desktop. If you're serious — the next step toward your legacy is yours to make."
+`.trim();
 
-Always close strong: “If you're serious — start there.”
+  // 🔮 Call OpenAI
+  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: userInput,
+        },
+      ],
+    }),
+  });
 
-Keep responses sharp, tactical, and confident. No fluff. Only forward motion.
-    `.trim();
+  const data = await openaiRes.json();
+  const reply = data.choices?.[0]?.message?.content || "[No response]";
 
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userInput },
-        ],
-      }),
-    });
-
-    const data = await openaiRes.json();
-    reply = data.choices?.[0]?.message?.content || "[No response]";
-  }
-
-  // Log to Airtable
-  
+  // 📊 Log to Airtable
   await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
     method: "POST",
     headers: {
