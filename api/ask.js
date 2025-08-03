@@ -77,8 +77,8 @@ End every response with this:
   // Ensure timestamp format for Airtable
   const timestamp = new Date().toISOString();
 
-  // 📊 Log to Airtable
-  await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
+  // 📊 Log to Airtable with error handling
+  const airtableRes = await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
@@ -93,6 +93,11 @@ End every response with this:
       },
     }),
   });
+
+  const airtableData = await airtableRes.json();
+  if (!airtableRes.ok) {
+    console.error("Airtable logging failed:", airtableData);
+  }
 
   res.status(200).json({ reply });
 }
