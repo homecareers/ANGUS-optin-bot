@@ -59,6 +59,7 @@ Keep responses sharp, tactical, and confident. No fluff. Only forward motion.
   }
 
   // Log to Airtable
+  
   await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
     method: "POST",
     headers: {
