@@ -11,17 +11,6 @@ export default async function handler(req, res) {
   const { userInput } = req.body;
   const personality = extractPersonality(userInput);
 
-  const systemPrompt = `You are ANGUS™, a bold, no-fluff strategist trained in The Legacy Code. 
-  Always answer in a tone matching the user's GEM personality (Emerald, Ruby, Pearl, Sapphire) based on their input.
-  After giving your response, analyze it and provide the following evaluation as a JSON object:
-
-  {
-    "Clarity Score": (0-10, how clear is this response),
-    "Relevance Score": (0-10, how well it answers the user's question),
-    "Confidence": (0-10, how decisive the response feels),
-    "Personality Match": (0-10, how well the tone fits the inferred personality)
-  }`;
-
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -31,27 +20,62 @@ export default async function handler(req, res) {
     body: JSON.stringify({
       model: "gpt-4",
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userInput },
+        {
+          role: "system",
+          content: `You are ANGUS™, a bold, no-fluff strategist trained in The Legacy Code. Always answer in a tone matching the user's GEM personality (Pearl, Ruby, Emerald, Sapphire) based on input.`,
+        },
+        {
+          role: "user",
+          content: userInput,
+        },
       ],
     }),
   });
 
   const data = await openaiRes.json();
-  const rawReply = data.choices?.[0]?.message?.content || "[No response]";
+  const reply = data.choices?.[0]?.message?.content || "[No response]";
 
-  // Split the assistant's reply and JSON block
-  const match = rawReply.match(/({[\s\S]*?})$/);
-  const responseText = match ? rawReply.replace(match[0], "").trim() : rawReply;
-  let scores = {};
+  // Ask GPT to score the response
+  const gradingPrompt = `Grade the following response on a scale of 0 to 10 in three categories:
+- Clarity: Is it clearly written and structured?
+- Relevance: Does it directly address the user's concern?
+- Confidence: Is the tone confident and authoritative?
+Also, rate the Personality Match (0-10) based on whether it fits the user's GEM type: ${personality}.
+Respond in JSON with keys: clarity, relevance, confidence, match.
+
+RESPONSE:
+"""
+${reply}
+"""`;
+
+  const gradingRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4",
+      messages: [
+        { role: "user", content: gradingPrompt },
+      ],
+    }),
+  });
+
+  const gradingData = await gradingRes.json();
+  let clarity = null, relevance = null, confidence = null, match = null;
   try {
-    scores = match ? JSON.parse(match[0]) : {};
+    const scores = JSON.parse(gradingData.choices?.[0]?.message?.content || '{}');
+    clarity = scores.clarity;
+    relevance = scores.relevance;
+    confidence = scores.confidence;
+    match = scores.match;
   } catch (e) {
-    console.error("Failed to parse scores:", e);
+    console.error("Scoring parse error:", e);
   }
 
   // Send log to Airtable
-  await fetch("https://api.airtable.com/v0/" + process.env.AIRTABLE_BASE_ID + "/User Logs", {
+  await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
@@ -60,16 +84,16 @@ export default async function handler(req, res) {
     body: JSON.stringify({
       fields: {
         Question: userInput,
-        Response: responseText,
-        Timestamp: new Date().toISOString(),
+        Response: reply,
         Personality: personality,
-        "Clarity Score": scores["Clarity Score"] || null,
-        "Relevance Score": scores["Relevance Score"] || null,
-        Confidence: scores["Confidence"] || null,
-        "Personality Match": scores["Personality Match"] || null,
+        Timestamp: new Date().toISOString(),
+        "Clarity Score": clarity,
+        "Relevance Score": relevance,
+        Confidence: confidence,
+        "Personality Match": match,
       },
     }),
   });
 
-  res.status(200).json({ reply: responseText });
+  res.status(200).json({ reply });
 }
