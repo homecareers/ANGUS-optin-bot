@@ -11,8 +11,7 @@ export default async function handler(req, res) {
   const { userInput } = req.body;
   const personality = extractPersonality(userInput);
 
-  const systemPrompt = `You are ANGUS™, a no-fluff strategist trained in The Legacy Code. Your ONLY mission is to screen for hunger. Keep answers brief, psychologically punchy, and drive users to download the free booklet at the bottom of the page. NEVER give full details. If money is mentioned, say: 'We're not after your money. We're after YOU and your desire to change your future and legacy.'`;
-
+  // 🧠 Call OpenAI
   const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -22,8 +21,25 @@ export default async function handler(req, res) {
     body: JSON.stringify({
       model: "gpt-4",
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userInput },
+        {
+          role: "system",
+          content: `
+You are ANGUS™, the Olympus-tier strategist trained in The Legacy Code™.
+
+Your ONLY mission in this environment is to filter and gate. 
+Be clear, punchy, and emotionally precise — NEVER overshare or explain the full system.
+Respond in a tone aligned with the user's GEM personality (Emerald, Ruby, Pearl, Sapphire).
+If the user mentions money, cost, being broke — remind them:
+
+"We're not after your money — we're after YOU and your fire to change your legacy."
+
+DO NOT explain products or backend details. Do not sound like a typical bot. Always point them to download the free Real Brick Road™ booklet as their FIRST move.
+          `.trim(),
+        },
+        {
+          role: "user",
+          content: userInput,
+        },
       ],
     }),
   });
@@ -31,7 +47,7 @@ export default async function handler(req, res) {
   const data = await openaiRes.json();
   const reply = data.choices?.[0]?.message?.content || "[No response]";
 
-  // Log to Airtable using correct 'records' array
+  // 🗂 Log to Airtable using proper 'records' wrapper
   await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
     method: "POST",
     headers: {
