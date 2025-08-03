@@ -58,21 +58,28 @@ End every response with this:
   const data = await openaiRes.json();
   const reply = customReply || data.choices?.[0]?.message?.content || "[No response]";
 
-  // 🔁 Send payload to Webhook.site instead of Airtable
-  await fetch("https://webhook.site/49b21aed-4354-4621-870f-c089c87d3e5e", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      fields: {
-        Timestamp: new Date().toLocaleString(),
-        Question: userInput,
-        Response: reply,
-        Personality: personality,
+  // 🔍 Airtable logging with full debug trace
+  try {
+    const airtableRes = await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/User%20Logs`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.AIRTABLE_TOKEN}`,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        fields: {
+          Timestamp: new Date().toLocaleString(),
+          Question: userInput,
+          Response: reply,
+          Personality: personality,
+        },
+      }),
+    });
+    const airtableResult = await airtableRes.json();
+    console.log("Airtable response:", airtableResult);
+  } catch (err) {
+    console.error("Airtable logging error:", err);
+  }
 
   res.status(200).json({ reply });
 }
