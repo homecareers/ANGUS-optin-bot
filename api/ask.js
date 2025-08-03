@@ -64,4 +64,9 @@ Always end answers with:
 
     res.status(200).json({ reply });
 
+  } catch (err) {
+    console.error("Handler failed:", err);
+    res.status(500).json({ error: "Internal error" });
   }
+}
+
